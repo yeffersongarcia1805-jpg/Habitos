@@ -292,7 +292,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .hm-legend-bar{flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,var(--bg4) 0%,rgba(201,240,136,.15) 25%,rgba(201,240,136,.45) 55%,rgba(201,240,136,.8) 80%,#c9f088 100%);max-width:160px}
 .hm-legend-ticks{display:flex;justify-content:space-between;max-width:160px;flex:1}
 .hm-legend-tick{font-size:10px;color:var(--text3)}
-/* EDIT HABITS */
+/* NUMERIC HABIT COUNTER */
+.habit-card.has-goal{cursor:default}
+.habit-card.has-goal:hover{border-color:var(--border);background:var(--bg2)}
+.habit-card.has-goal.done:hover{border-color:rgba(201,240,136,.25);background:var(--adim)}
+.goal-counter{display:flex;align-items:center;gap:6px;margin-top:6px}
+.goal-btn{width:22px;height:22px;border-radius:4px;border:1px solid var(--border2);background:var(--bg4);color:var(--text2);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:all .12s;font-family:'DM Sans',sans-serif;flex-shrink:0}
+.goal-btn:hover{background:var(--bg5);color:var(--text);border-color:var(--border2)}
+.goal-progress-wrap{flex:1;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.goal-progress-fill{height:100%;border-radius:2px;background:var(--accent);transition:width .3s cubic-bezier(.4,0,.2,1)}
+.goal-val{font-size:11px;color:var(--text2);min-width:36px;text-align:right;white-space:nowrap}
+.goal-val.done{color:var(--accent)}
 .edit-habit-row{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rxs);padding:8px 10px}
 .edit-habit-input{flex:1;background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
 .edit-habit-input::placeholder{color:var(--text3)}
@@ -804,7 +814,7 @@ function saveAll(d){
   localStorage.setItem('hab_data',JSON.stringify(d));
   if(window._saveToFirestore) window._saveToFirestore(d);
 }
-function getDay(k){return stor()[k]||{habits:new Array(12).fill(false),sleep:'',sleepTime:'',wakeTime:'',energia:0,conc:0,mental:0,ojeras:0,nota:''}}
+function getDay(k){return stor()[k]||{habits:new Array(12).fill(false),habitVals:{},sleep:'',sleepTime:'',wakeTime:'',energia:0,conc:0,mental:0,ojeras:0,nota:''}}
 function saveDay(k,day){const d=stor();d[k]=day;saveAll(d)}
 
 let todayState={};
@@ -953,13 +963,37 @@ function buildHabitsGrid(){
 
     items.forEach(({h,i})=>{
       const card=document.createElement('div');
-      card.className='habit-card'+(todayState.habits[i]?' done':'');
-      card.id='hc'+i;card.onclick=()=>toggleHabit(i);
+      const isDone = !!todayState.habits[i];
+      const isNumeric = !!h.goalTarget;
+      card.className='habit-card'+(isDone?' done':'')+(isNumeric?' has-goal':'');
+      card.id='hc'+i;
+
       const weekCells=getLast7HabitDays(i);
       const weekHtml=weekCells.map(s=>`<div class="hw-cell ${s}"></div>`).join('');
       const streak=calcHabitStreak(i);
       const streakHtml=streak>=2?`<div class="habit-streak visible"><span class="habit-streak-icon">🔥</span>${streak} días</div>`:`<div class="habit-streak"></div>`;
-      card.innerHTML=`<div class="check-box"><svg class="check-icon" viewBox="0 0 11 9" fill="none" stroke="#0f0f0e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5L4 7.5L10 1"/></svg></div><div style="flex:1;min-width:0"><div class="habit-name">${h.name}</div>${streakHtml}<div class="habit-week">${weekHtml}</div></div>`;
+
+      if(isNumeric){
+        const current = todayState.habitVals?.[i] || 0;
+        const target = h.goalTarget;
+        const pct = Math.min(100, Math.round(current/target*100));
+        const valLabel = isDone ? `✓ ${target}/${target} ${h.goalUnit}` : `${current}/${target} ${h.goalUnit}`;
+        card.innerHTML=`
+          <div style="flex:1;min-width:0">
+            <div class="habit-name">${h.name}</div>
+            ${streakHtml}
+            <div class="goal-counter">
+              <button class="goal-btn" onclick="event.stopPropagation();adjustGoal(${i},-1)">−</button>
+              <div class="goal-progress-wrap"><div class="goal-progress-fill" id="gpf${i}" style="width:${pct}%"></div></div>
+              <button class="goal-btn" onclick="event.stopPropagation();adjustGoal(${i},1)">+</button>
+            </div>
+            <div class="goal-val${isDone?' done':''}" id="gv${i}">${valLabel}</div>
+            <div class="habit-week">${weekHtml}</div>
+          </div>`;
+      } else {
+        card.onclick=()=>toggleHabit(i);
+        card.innerHTML=`<div class="check-box"><svg class="check-icon" viewBox="0 0 11 9" fill="none" stroke="#0f0f0e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4.5L4 7.5L10 1"/></svg></div><div style="flex:1;min-width:0"><div class="habit-name">${h.name}</div>${streakHtml}<div class="habit-week">${weekHtml}</div></div>`;
+      }
       grid.appendChild(card);
     });
 
@@ -994,7 +1028,44 @@ function toggleHabit(i){
   saveDay(todayKey,todayState);
 }
 
-// ─── STARS ────────────────────────────────────────────────────────────────────
+function adjustGoal(i, delta){
+  if(!todayState.habitVals) todayState.habitVals={};
+  const target = HABITS[i].goalTarget;
+  const cur = todayState.habitVals[i] || 0;
+  const next = Math.max(0, Math.min(target, cur + delta));
+  todayState.habitVals[i] = next;
+  const done = next >= target;
+  todayState.habits[i] = done;
+
+  // Update UI
+  const card = document.getElementById('hc'+i);
+  if(card){
+    card.classList.toggle('done', done);
+    const pct = Math.min(100, Math.round(next/target*100));
+    const fill = document.getElementById('gpf'+i);
+    const val  = document.getElementById('gv'+i);
+    if(fill) fill.style.width = pct+'%';
+    if(val){
+      val.textContent = done ? `✓ ${target}/${target} ${HABITS[i].goalUnit}` : `${next}/${target} ${HABITS[i].goalUnit}`;
+      val.className = 'goal-val'+(done?' done':'');
+    }
+  }
+  // update cat count
+  refreshCatCount(HABITS[i].cat);
+  updateKPIs();
+  saveDay(todayKey, todayState);
+}
+
+function refreshCatCount(cat){
+  document.querySelectorAll('.habits-cat-header').forEach(hdr=>{
+    const lbl=hdr.querySelector('.habits-cat-label');
+    if(lbl&&lbl.textContent===cat){
+      const items=HABITS.map((h,idx)=>({h,idx})).filter(({h})=>h.cat===cat);
+      const done=items.filter(({idx})=>todayState.habits[idx]).length;
+      hdr.querySelector('.habits-cat-count').textContent=done+'/'+items.length;
+    }
+  });
+}
 function buildStars(id,key,state){
   const wrap=document.getElementById(id);wrap.innerHTML='';
   for(let n=1;n<=5;n++){const btn=document.createElement('button');btn.className='star-btn'+(state[key]>=n?' on':'');btn.textContent=n;btn.onclick=()=>setStar(key,n);wrap.appendChild(btn);}
@@ -1642,14 +1713,42 @@ function renderEditHabitsList(){
   editHabitsTemp.forEach((h,i)=>{
     const row = document.createElement('div');
     row.className = 'edit-habit-row';
+    row.style.flexWrap = 'wrap';
     const catOptions = CATS.map(c=>`<option value="${c}"${c===h.cat?' selected':''}>${c}</option>`).join('');
+    const hasGoal = !!h.goalTarget;
     row.innerHTML = `
       <span style="color:var(--text3);font-size:11px;min-width:18px;text-align:right">${i+1}</span>
       <input class="edit-habit-input" value="${h.name}" placeholder="Nombre del hábito" oninput="editHabitsTemp[${i}].name=this.value">
       <select class="edit-cat-select" onchange="editHabitsTemp[${i}].cat=this.value">${catOptions}</select>
-      <button class="edit-del-btn" onclick="deleteEditHabit(${i})" title="Eliminar">×</button>`;
+      <button class="edit-del-btn" onclick="deleteEditHabit(${i})" title="Eliminar">×</button>
+      <div style="width:100%;padding-left:26px;display:flex;align-items:center;gap:8px;margin-top:5px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer">
+          <input type="checkbox" ${hasGoal?'checked':''} onchange="toggleGoal(${i},this.checked)" style="cursor:pointer">
+          Meta numérica
+        </label>
+        ${hasGoal?`
+        <input type="number" min="1" max="999" value="${h.goalTarget||1}" 
+          style="width:52px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:3px 6px;outline:none;font-family:'DM Sans',sans-serif"
+          oninput="editHabitsTemp[${i}].goalTarget=Math.max(1,parseInt(this.value)||1)">
+        <input type="text" value="${h.goalUnit||'min'}" placeholder="unidad" maxlength="8"
+          style="width:60px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:3px 6px;outline:none;font-family:'DM Sans',sans-serif"
+          oninput="editHabitsTemp[${i}].goalUnit=this.value">
+        <span style="font-size:11px;color:var(--text3)">ej: 30 min, 8 vasos</span>
+        `:''}
+      </div>`;
     list.appendChild(row);
   });
+}
+
+function toggleGoal(i, on){
+  if(on){
+    editHabitsTemp[i].goalTarget = editHabitsTemp[i].goalTarget || 30;
+    editHabitsTemp[i].goalUnit   = editHabitsTemp[i].goalUnit   || 'min';
+  } else {
+    delete editHabitsTemp[i].goalTarget;
+    delete editHabitsTemp[i].goalUnit;
+  }
+  renderEditHabitsList();
 }
 
 function deleteEditHabit(i){
