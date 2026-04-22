@@ -1697,6 +1697,12 @@ let editHabitsTemp = [];
 function openEditHabits(){
   editHabitsTemp = HABITS.map(h=>({...h}));
   renderEditHabitsList();
+  // Attach delegated listener (remove previous one first to avoid duplicates)
+  const list = document.getElementById('edit-habits-list');
+  list.removeEventListener('input', onEditHabitsChange);
+  list.removeEventListener('change', onEditHabitsChange);
+  list.addEventListener('input', onEditHabitsChange);
+  list.addEventListener('change', onEditHabitsChange);
   document.getElementById('edit-habits-overlay').classList.add('open');
 }
 
@@ -1714,25 +1720,24 @@ function renderEditHabitsList(){
     const row = document.createElement('div');
     row.className = 'edit-habit-row';
     row.style.flexWrap = 'wrap';
+    row.dataset.idx = i;
     const catOptions = CATS.map(c=>`<option value="${c}"${c===h.cat?' selected':''}>${c}</option>`).join('');
     const hasGoal = !!h.goalTarget;
     row.innerHTML = `
       <span style="color:var(--text3);font-size:11px;min-width:18px;text-align:right">${i+1}</span>
-      <input class="edit-habit-input" value="${h.name}" placeholder="Nombre del hábito" oninput="editHabitsTemp[${i}].name=this.value">
-      <select class="edit-cat-select" onchange="editHabitsTemp[${i}].cat=this.value">${catOptions}</select>
+      <input class="edit-habit-input" data-idx="${i}" data-field="name" value="${h.name}" placeholder="Nombre del hábito">
+      <select class="edit-cat-select" data-idx="${i}" data-field="cat">${catOptions}</select>
       <button class="edit-del-btn" onclick="deleteEditHabit(${i})" title="Eliminar">×</button>
       <div style="width:100%;padding-left:26px;display:flex;align-items:center;gap:8px;margin-top:5px">
         <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer">
-          <input type="checkbox" ${hasGoal?'checked':''} onchange="toggleGoal(${i},this.checked)" style="cursor:pointer">
+          <input type="checkbox" data-idx="${i}" data-field="goalToggle" ${hasGoal?'checked':''} style="cursor:pointer">
           Meta numérica
         </label>
         ${hasGoal?`
-        <input type="number" min="1" max="999" value="${h.goalTarget||1}" 
-          style="width:52px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:3px 6px;outline:none;font-family:'DM Sans',sans-serif"
-          oninput="editHabitsTemp[${i}].goalTarget=Math.max(1,parseInt(this.value)||1)">
-        <input type="text" value="${h.goalUnit||'min'}" placeholder="unidad" maxlength="8"
-          style="width:60px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:3px 6px;outline:none;font-family:'DM Sans',sans-serif"
-          oninput="editHabitsTemp[${i}].goalUnit=this.value">
+        <input type="number" min="1" max="999" data-idx="${i}" data-field="goalTarget" value="${h.goalTarget||1}"
+          style="width:52px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:3px 6px;outline:none;font-family:'DM Sans',sans-serif">
+        <input type="text" data-idx="${i}" data-field="goalUnit" value="${h.goalUnit||'min'}" placeholder="unidad" maxlength="8"
+          style="width:60px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:12px;padding:3px 6px;outline:none;font-family:'DM Sans',sans-serif">
         <span style="font-size:11px;color:var(--text3)">ej: 30 min, 8 vasos</span>
         `:''}
       </div>`;
@@ -1740,15 +1745,26 @@ function renderEditHabitsList(){
   });
 }
 
-function toggleGoal(i, on){
-  if(on){
-    editHabitsTemp[i].goalTarget = editHabitsTemp[i].goalTarget || 30;
-    editHabitsTemp[i].goalUnit   = editHabitsTemp[i].goalUnit   || 'min';
-  } else {
-    delete editHabitsTemp[i].goalTarget;
-    delete editHabitsTemp[i].goalUnit;
+// Single delegated listener on the container — handles all field changes
+function onEditHabitsChange(e){
+  const el = e.target;
+  const idx = parseInt(el.dataset.idx);
+  const field = el.dataset.field;
+  if(isNaN(idx) || !field) return;
+  if(field === 'name') { editHabitsTemp[idx].name = el.value; return; }
+  if(field === 'cat')  { editHabitsTemp[idx].cat  = el.value; return; }
+  if(field === 'goalTarget'){ editHabitsTemp[idx].goalTarget = Math.max(1, parseInt(el.value)||1); return; }
+  if(field === 'goalUnit')  { editHabitsTemp[idx].goalUnit   = el.value; return; }
+  if(field === 'goalToggle'){
+    if(el.checked){
+      editHabitsTemp[idx].goalTarget = editHabitsTemp[idx].goalTarget || 30;
+      editHabitsTemp[idx].goalUnit   = editHabitsTemp[idx].goalUnit   || 'min';
+    } else {
+      delete editHabitsTemp[idx].goalTarget;
+      delete editHabitsTemp[idx].goalUnit;
+    }
+    renderEditHabitsList();
   }
-  renderEditHabitsList();
 }
 
 function deleteEditHabit(i){
@@ -1775,9 +1791,13 @@ function saveEditHabits(){
   const oldLen = HABITS.length;
   const newLen = editHabitsTemp.length;
 
-  // Update HABITS
+  // Update HABITS — preserve goalTarget and goalUnit
   HABITS.length = 0;
-  editHabitsTemp.forEach(h=>HABITS.push({name:h.name.trim(),cat:h.cat}));
+  editHabitsTemp.forEach(h=>{
+    const entry = {name:h.name.trim(), cat:h.cat};
+    if(h.goalTarget){ entry.goalTarget = h.goalTarget; entry.goalUnit = h.goalUnit||''; }
+    HABITS.push(entry);
+  });
   saveHabits();
 
   // Adjust todayState.habits array length
