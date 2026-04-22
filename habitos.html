@@ -292,6 +292,14 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .hm-legend-bar{flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,var(--bg4) 0%,rgba(201,240,136,.15) 25%,rgba(201,240,136,.45) 55%,rgba(201,240,136,.8) 80%,#c9f088 100%);max-width:160px}
 .hm-legend-ticks{display:flex;justify-content:space-between;max-width:160px;flex:1}
 .hm-legend-tick{font-size:10px;color:var(--text3)}
+/* EDIT HABITS */
+.edit-habit-row{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rxs);padding:8px 10px}
+.edit-habit-input{flex:1;background:transparent;border:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none}
+.edit-habit-input::placeholder{color:var(--text3)}
+.edit-cat-select{background:var(--bg4);border:1px solid var(--border);border-radius:var(--rxs);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 6px;outline:none;cursor:pointer}
+.edit-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;transition:color .15s;flex-shrink:0}
+.edit-del-btn:hover{color:var(--red)}
+
 .rank-list{display:flex;flex-direction:column;gap:8px}
 .rank-row{display:flex;align-items:center;gap:10px}
 .rank-name{font-size:12px;color:var(--text2);min-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -571,7 +579,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 
     <div class="section-header">
       <div class="section-title">Hábitos del día</div>
-      <div id="hoy-already" style="font-size:12px;color:var(--accent);display:none">✓ Guardado hoy</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="hoy-already" style="font-size:12px;color:var(--accent);display:none">✓ Guardado hoy</div>
+        <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" onclick="openEditHabits()">⚙ Editar</button>
+      </div>
     </div>
     <!-- habits rendered by category -->
     <div id="habits-by-cat"></div>
@@ -725,18 +736,42 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     </div>
   </div>
 </div>
+<!-- EDIT HABITS MODAL -->
+<div class="modal-overlay" id="edit-habits-overlay" onclick="closeEditHabits(event)">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <div class="modal-title">Editar hábitos</div>
+      <button class="modal-close" onclick="closeEditHabitsDirect()">✕</button>
+    </div>
+    <div id="edit-habits-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;max-height:400px;overflow-y:auto"></div>
+    <button class="btn btn-ghost" style="width:100%;justify-content:center;gap:8px" onclick="addNewHabit()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 1v11M1 6.5h11"/></svg>
+      Agregar hábito
+    </button>
+    <div class="modal-footer">
+      <div></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" onclick="closeEditHabitsDirect()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveEditHabits()">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </div><!-- /app-shell -->
 
 <script>
 // ─── SEED DATA ────────────────────────────────────────────────────────────────
 const EXCEL_SEED = {"2026-04-14":{"habits":[false,true,true,true,true,true,true,false,true,true,true,false],"sleep":"8.0","sleepTime":"02:30","wakeTime":"10:30","energia":3,"conc":3,"mental":3,"ojeras":3,"nota":""},"2026-04-15":{"habits":[false,false,true,false,false,false,false,true,true,false,true,false],"sleep":"11.0","sleepTime":"03:30","wakeTime":"14:30","energia":2,"conc":3,"mental":3,"ojeras":3,"nota":""},"2026-04-16":{"habits":[false,true,true,false,true,true,false,false,true,false,true,false],"sleep":"8.0","sleepTime":"04:30","wakeTime":"12:30","energia":3,"conc":3,"mental":3,"ojeras":3,"nota":""},"2026-04-17":{"habits":[false,true,true,false,false,false,false,false,true,true,true,false],"sleep":"8.67","sleepTime":"04:00","wakeTime":"12:40","energia":3,"conc":3,"mental":3,"ojeras":3,"nota":""},"2026-04-18":{"habits":[false,true,true,true,true,true,false,false,true,true,true,true],"sleep":"10.5","sleepTime":"03:30","wakeTime":"14:00","energia":4,"conc":3,"mental":3,"ojeras":2,"nota":""},"2026-04-19":{"habits":[false,false,true,true,false,false,true,false,true,true,false,true],"sleep":"10.0","sleepTime":"04:30","wakeTime":"14:30","energia":3,"conc":3,"mental":3,"ojeras":3,"nota":""},"2026-04-20":{"habits":[false,false,true,false,false,true,true,false,true,true,true,false],"sleep":"8.5","sleepTime":"02:30","wakeTime":"11:00","energia":3,"conc":4,"mental":3,"ojeras":3,"nota":""}};
 
-const HABITS=[
+const DEFAULT_HABITS=[
   {name:"Dormí a mi hora",cat:"Sueño"},{name:"Sin pantalla",cat:"Sueño"},{name:"Sin cafeína",cat:"Sueño"},
   {name:"Agua suficiente",cat:"Cuerpo"},{name:"Movimiento 30 min",cat:"Cuerpo"},{name:"Luz natural",cat:"Cuerpo"},
   {name:"Estudio 25 min",cat:"Mente"},{name:"Relajación",cat:"Mente"},{name:"Gratitud",cat:"Mente"},
   {name:"Hablé con alguien",cat:"Social"},{name:"No me froté los ojos",cat:"Salud"},{name:"Protector solar",cat:"Salud"}
 ];
+let HABITS=JSON.parse(localStorage.getItem('hab_habits')||'null')||DEFAULT_HABITS.map(h=>({...h}));
+function saveHabits(){localStorage.setItem('hab_habits',JSON.stringify(HABITS));if(window._saveToFirestore)window._saveToFirestore(stor());}
 const MONTHS=["Enero 2026","Febrero 2026","Marzo 2026","Abril 2026","Mayo 2026","Junio 2026","Julio 2026","Agosto 2026","Septiembre 2026","Octubre 2026","Noviembre 2026","Diciembre 2026"];
 const DAY_NAMES=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 
@@ -1582,6 +1617,79 @@ function updateNotifStatus(nextDate){
   } else {
     el.textContent = `Activo · 8:00 PM`;
   }
+}
+
+// ─── EDIT HABITS ──────────────────────────────────────────────────────────────
+const CATS = ['Sueño','Cuerpo','Mente','Social','Salud'];
+let editHabitsTemp = [];
+
+function openEditHabits(){
+  editHabitsTemp = HABITS.map(h=>({...h}));
+  renderEditHabitsList();
+  document.getElementById('edit-habits-overlay').classList.add('open');
+}
+
+function closeEditHabits(e){
+  if(e.target===document.getElementById('edit-habits-overlay')) closeEditHabitsDirect();
+}
+function closeEditHabitsDirect(){
+  document.getElementById('edit-habits-overlay').classList.remove('open');
+}
+
+function renderEditHabitsList(){
+  const list = document.getElementById('edit-habits-list');
+  list.innerHTML = '';
+  editHabitsTemp.forEach((h,i)=>{
+    const row = document.createElement('div');
+    row.className = 'edit-habit-row';
+    const catOptions = CATS.map(c=>`<option value="${c}"${c===h.cat?' selected':''}>${c}</option>`).join('');
+    row.innerHTML = `
+      <span style="color:var(--text3);font-size:11px;min-width:18px;text-align:right">${i+1}</span>
+      <input class="edit-habit-input" value="${h.name}" placeholder="Nombre del hábito" oninput="editHabitsTemp[${i}].name=this.value">
+      <select class="edit-cat-select" onchange="editHabitsTemp[${i}].cat=this.value">${catOptions}</select>
+      <button class="edit-del-btn" onclick="deleteEditHabit(${i})" title="Eliminar">×</button>`;
+    list.appendChild(row);
+  });
+}
+
+function deleteEditHabit(i){
+  if(editHabitsTemp.length<=1){alert('Debe haber al menos 1 hábito.');return;}
+  editHabitsTemp.splice(i,1);
+  renderEditHabitsList();
+}
+
+function addNewHabit(){
+  editHabitsTemp.push({name:'',cat:'Mente'});
+  renderEditHabitsList();
+  // focus last input
+  setTimeout(()=>{
+    const inputs=document.querySelectorAll('.edit-habit-input');
+    if(inputs.length) inputs[inputs.length-1].focus();
+  },50);
+}
+
+function saveEditHabits(){
+  // Validate
+  const invalid = editHabitsTemp.filter(h=>!h.name.trim());
+  if(invalid.length){alert('Todos los hábitos deben tener nombre.');return;}
+
+  const oldLen = HABITS.length;
+  const newLen = editHabitsTemp.length;
+
+  // Update HABITS
+  HABITS.length = 0;
+  editHabitsTemp.forEach(h=>HABITS.push({name:h.name.trim(),cat:h.cat}));
+  saveHabits();
+
+  // Adjust todayState.habits array length
+  while(todayState.habits.length < newLen) todayState.habits.push(false);
+  todayState.habits = todayState.habits.slice(0, newLen);
+  saveDay(todayKey, todayState);
+
+  closeEditHabitsDirect();
+  buildHabitsGrid();
+  buildWeekStrip();
+  updateKPIs();
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
