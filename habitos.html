@@ -56,8 +56,11 @@ async function syncFromFirestore(uid) {
       localStorage.setItem('hab_data', JSON.stringify(local));
     }
     window._firebaseReady = true;
-    window.showSyncStatus && window.showSyncStatus('✓ Nube sincronizada', 'ok');
-    setTimeout(() => window.hideSyncStatus && window.hideSyncStatus(), 2500);
+    await flushOfflineQueue();
+    if(!Object.keys(getOfflineQueue()).length){
+      window.showSyncStatus && window.showSyncStatus('✓ Nube sincronizada', 'ok');
+      setTimeout(() => window.hideSyncStatus && window.hideSyncStatus(), 2500);
+    }
   } catch(e) {
     console.error('Firebase sync error:', e);
     window._firebaseReady = false;
@@ -66,15 +69,47 @@ async function syncFromFirestore(uid) {
   }
 }
 
-// Save a single day document
+// ─── OFFLINE QUEUE ────────────────────────────────────────────────────────────
+// Persists pending writes in localStorage so they survive page reloads
+function getOfflineQueue(){ try{ return JSON.parse(localStorage.getItem('hab_offline_queue')||'{}'); }catch{ return {}; } }
+function setOfflineQueue(q){ localStorage.setItem('hab_offline_queue', JSON.stringify(q)); }
+function addToOfflineQueue(dateKey, dayData){
+  const q = getOfflineQueue();
+  q[dateKey] = dayData;
+  setOfflineQueue(q);
+  window.showSyncStatus && window.showSyncStatus('📶 Sin conexión — guardado local', 'warn');
+  setTimeout(() => window.hideSyncStatus && window.hideSyncStatus(), 3000);
+}
+async function flushOfflineQueue(){
+  const q = getOfflineQueue();
+  const keys = Object.keys(q);
+  if(!keys.length || !window._firebaseReady || !window._currentUser) return;
+  window.showSyncStatus && window.showSyncStatus('Sincronizando pendientes...', 'loading');
+  try {
+    const uid = window._currentUser.uid;
+    await Promise.all(keys.map(k => setDoc(userDayDoc(uid, k), q[k])));
+    setOfflineQueue({});
+    window.showSyncStatus && window.showSyncStatus('✓ '+keys.length+' registro'+(keys.length>1?'s':'')+' sincronizado'+(keys.length>1?'s':''), 'ok');
+    setTimeout(() => window.hideSyncStatus && window.hideSyncStatus(), 2500);
+  } catch(e){
+    console.error('Flush offline queue error:', e);
+  }
+}
+// Listen for connection restore
+window.addEventListener('online', ()=>{ if(window._firebaseReady) flushOfflineQueue(); });
+
+// Save a single day document — with offline queue fallback
 window._saveDayToFirestore = async function(dateKey, dayData) {
-  if (!window._firebaseReady || !window._currentUser) return;
+  if (!window._currentUser) return;
+  if (!window._firebaseReady || !navigator.onLine) {
+    addToOfflineQueue(dateKey, dayData);
+    return;
+  }
   try {
     await setDoc(userDayDoc(window._currentUser.uid, dateKey), dayData);
   } catch(e) {
     console.error('Firebase save error:', e);
-    window.showSyncStatus && window.showSyncStatus('⚠ Error al guardar en nube', 'warn');
-    setTimeout(() => window.hideSyncStatus && window.hideSyncStatus(), 3000);
+    addToOfflineQueue(dateKey, dayData);
   }
 };
 
@@ -410,19 +445,56 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   .shell{grid-template-columns:1fr}
   .sidebar{position:fixed;left:-240px;top:0;z-index:150;height:100vh;width:220px;transition:left .25s cubic-bezier(.4,0,.2,1)}
   .sidebar.mobile-open{left:0}
-  .main{padding:24px 16px;padding-top:68px}
-  .habits-grid{grid-template-columns:repeat(2,1fr)}
-  .week-strip{gap:4px}
+  .main{padding:16px 14px;padding-top:64px}
+  /* Habits grid — 2 columns on mobile */
+  .habits-grid{grid-template-columns:repeat(2,1fr);gap:7px}
+  /* Habit cards — bigger tap targets */
+  .habit-card{padding:12px 12px;min-height:58px}
+  .habit-name{font-size:12.5px}
+  .check-box{width:22px;height:22px;flex-shrink:0}
+  /* Week strip — compact */
+  .week-strip{gap:3px;margin-bottom:16px}
   .wsd-name{font-size:9px}
-  .donut-wrap{flex-direction:column;gap:20px}
-  .donut-stats{flex-direction:row;flex-wrap:wrap;gap:12px;justify-content:center}
+  .wsd-pct{font-size:15px}
+  /* Donut — stack vertically, panel becomes horizontal chips */
+  .donut-wrap{flex-direction:column;gap:16px;align-items:center;margin-bottom:16px}
+  .donut-svg-wrap{width:120px;height:120px}
+  .donut-pct-label{font-size:30px}
+  .donut-stats{flex-direction:row;flex-wrap:wrap;gap:8px;justify-content:center;width:100%}
+  .donut-stat-row{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 10px;gap:6px;flex-shrink:0}
+  .donut-stat-name{font-size:11px;min-width:unset}
+  .donut-stat-val{font-size:11px}
+  /* Metrics grid — 2 columns */
   .metrics-grid{grid-template-columns:1fr 1fr}
-  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .metric-card{padding:14px 14px}
+  .time-input{font-size:22px}
+  .sleep-display{font-size:28px}
+  /* Stars — bigger tap */
+  .star-btn{width:38px;height:38px;font-size:14px}
+  /* Page header */
+  .page-title{font-size:22px}
+  .page-header{margin-bottom:18px}
+  /* Section headers */
+  .section-header{margin-bottom:10px}
+  /* KPI grid */
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  /* Stats */
   .stats-charts-grid{grid-template-columns:1fr}
+  /* Histórico */
   .month-cards{grid-template-columns:1fr 1fr}
-  .modal{padding:20px 16px}
+  /* Modal */
+  .modal{padding:18px 14px;width:100%;border-radius:var(--r) var(--r) 0 0;max-height:92vh;margin-top:auto}
+  .modal-overlay{align-items:flex-end}
   .modal-row{grid-template-columns:1fr 1fr}
-  .page-title{font-size:24px}
+  .modal-habits{grid-template-columns:1fr 1fr}
+  /* Save button full-width on mobile */
+  .save-row{flex-direction:column;align-items:stretch;gap:10px}
+  .save-row .btn-primary{width:100%;justify-content:center;padding:13px 16px;font-size:14px}
+  .save-row .save-feedback{text-align:center}
+  /* Category headers */
+  .habits-cat-label{font-size:9px}
+  /* Note textarea */
+  .note-textarea{height:60px;font-size:13px}
 }
 
 .habit-card{animation:fadeIn .2s ease both}
@@ -464,6 +536,34 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .sync-status.warn{border-color:rgba(240,192,96,.3);color:var(--amber)}
 .sync-spinner{width:10px;height:10px;border:1.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* DAILY SUMMARY MODAL */
+.summary-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .25s}
+.summary-overlay.open{opacity:1;pointer-events:all}
+.summary-modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;padding:32px 28px;width:420px;max-width:92vw;transform:translateY(12px) scale(.97);transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.summary-overlay.open .summary-modal{transform:translateY(0) scale(1)}
+.summary-score-ring{display:flex;align-items:center;justify-content:center;margin-bottom:24px}
+.summary-score-ring svg{overflow:visible}
+.summary-title{font-family:'DM Serif Display',serif;font-size:22px;letter-spacing:-.3px;text-align:center;margin-bottom:4px}
+.summary-subtitle{font-size:13px;color:var(--text3);text-align:center;margin-bottom:24px}
+.summary-cats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.summary-cat-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rsm);padding:12px 14px}
+.summary-cat-label{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.summary-cat-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px}
+.summary-cat-bar{height:3px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.summary-cat-fill{height:100%;border-radius:2px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.summary-highlights{display:flex;gap:10px;margin-bottom:22px}
+.summary-hl{flex:1;border-radius:var(--rsm);padding:12px 14px;border:1px solid}
+.summary-hl.best{background:var(--adim);border-color:rgba(201,240,136,.2)}
+.summary-hl.worst{background:var(--rdim);border-color:rgba(240,112,112,.15)}
+.summary-hl-icon{font-size:16px;margin-bottom:5px}
+.summary-hl-label{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:3px}
+.summary-hl-name{font-size:13px;font-weight:500}
+.summary-hl.best .summary-hl-name{color:var(--accent)}
+.summary-hl.worst .summary-hl-name{color:var(--red)}
+.summary-hl-pct{font-size:11px;color:var(--text3);margin-top:2px}
+.summary-close-btn{width:100%;padding:12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rsm);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.summary-close-btn:hover{background:var(--bg4);border-color:rgba(255,255,255,.18)}
 </style>
 </head>
 <body>
@@ -727,6 +827,18 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     </div>
   </div>
 </div>
+<!-- DAILY SUMMARY MODAL -->
+<div class="summary-overlay" id="summary-overlay" onclick="closeSummary(event)">
+  <div class="summary-modal">
+    <div class="summary-score-ring" id="summary-ring"></div>
+    <div class="summary-title" id="summary-title">¡Bien hecho!</div>
+    <div class="summary-subtitle" id="summary-subtitle">Registro del día guardado</div>
+    <div class="summary-highlights" id="summary-highlights"></div>
+    <div class="summary-cats" id="summary-cats"></div>
+    <button class="summary-close-btn" onclick="closeSummaryDirect()">Continuar</button>
+  </div>
+</div>
+
 <!-- EDIT HABITS MODAL -->
 <div class="modal-overlay" id="edit-habits-overlay" onclick="closeEditHabits(event)">
   <div class="modal" style="width:560px">
@@ -1193,10 +1305,85 @@ function calcRacha(){
 function guardarDia(){
   todayState.nota=document.getElementById('inp-nota').value;
   saveDay(todayKey,todayState);
-  const fb=document.getElementById('save-fb');fb.classList.add('show');
   document.getElementById('hoy-already').style.display='block';
-  setTimeout(()=>fb.classList.remove('show'),2500);
   updateKPIs();
+  showDailySummary();
+}
+
+// ─── DAILY SUMMARY ────────────────────────────────────────────────────────────
+function showDailySummary(){
+  const total = HABITS.length || 12;
+  const cnt   = todayState.habits.filter(Boolean).length;
+  const pct   = Math.round(cnt / total * 100);
+
+  // Score color
+  const scoreColor = pct>=80?'#c9f088':pct>=50?'#f0c060':'#f07070';
+  const scoreMsg   = pct>=80?'¡Excelente día!':pct>=50?'Buen avance':'Sigue adelante';
+
+  // Build category stats
+  const cats={};
+  HABITS.forEach((h,i)=>{
+    if(!cats[h.cat]) cats[h.cat]={total:0,done:0,color:CAT_COLORS[h.cat]||'#888'};
+    cats[h.cat].total++;
+    if(todayState.habits[i]) cats[h.cat].done++;
+  });
+  const catList = Object.entries(cats).map(([name,v])=>({name,...v,pct:v.total>0?Math.round(v.done/v.total*100):0}));
+  catList.sort((a,b)=>b.pct-a.pct);
+  const best  = catList[0];
+  const worst = catList[catList.length-1];
+
+  // Score ring SVG
+  const circ=138; const r=22; const cx=36; const cy=36;
+  const dash=circ*(pct/100); const gap=circ-dash;
+  document.getElementById('summary-ring').innerHTML=`
+    <svg width="72" height="72" viewBox="0 0 72 72">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="8"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${scoreColor}" stroke-width="8"
+        stroke-linecap="round" stroke-dasharray="${dash} ${gap}"
+        stroke-dashoffset="${circ*.25}" style="transition:stroke-dasharray .8s cubic-bezier(.4,0,.2,1)"/>
+      <text x="${cx}" y="${cy-4}" text-anchor="middle" font-family="DM Serif Display,serif"
+        font-size="14" fill="${scoreColor}" dominant-baseline="central">${pct}%</text>
+      <text x="${cx}" y="${cy+10}" text-anchor="middle" font-family="DM Sans,sans-serif"
+        font-size="8" fill="#5a5854">${cnt}/${total}</text>
+    </svg>`;
+
+  document.getElementById('summary-title').textContent = scoreMsg;
+  document.getElementById('summary-subtitle').textContent =
+    pct>=80?'Registro guardado — día completado con éxito':
+    pct>=50?'Registro guardado — vas por buen camino':
+    'Registro guardado — mañana es otra oportunidad';
+
+  // Highlights
+  document.getElementById('summary-highlights').innerHTML=`
+    <div class="summary-hl best">
+      <div class="summary-hl-icon">⭐</div>
+      <div class="summary-hl-label">Categoría estrella</div>
+      <div class="summary-hl-name">${best?best.name:'—'}</div>
+      <div class="summary-hl-pct">${best?best.done+'/'+best.total+' ('+best.pct+'%)':'—'}</div>
+    </div>
+    <div class="summary-hl worst">
+      <div class="summary-hl-icon">💡</div>
+      <div class="summary-hl-label">A mejorar</div>
+      <div class="summary-hl-name">${worst&&worst.name!==best?.name?worst.name:'—'}</div>
+      <div class="summary-hl-pct">${worst&&worst.name!==best?.name?worst.done+'/'+worst.total+' ('+worst.pct+'%)':'Ya vas bien'}</div>
+    </div>`;
+
+  // Category cards
+  document.getElementById('summary-cats').innerHTML = catList.map(c=>`
+    <div class="summary-cat-card">
+      <div class="summary-cat-label" style="color:${c.color}">${c.name}</div>
+      <div class="summary-cat-name">${c.done}/${c.total} hábitos</div>
+      <div class="summary-cat-bar"><div class="summary-cat-fill" style="width:${c.pct}%;background:${c.color}"></div></div>
+    </div>`).join('');
+
+  document.getElementById('summary-overlay').classList.add('open');
+}
+
+function closeSummary(e){
+  if(e.target===document.getElementById('summary-overlay')) closeSummaryDirect();
+}
+function closeSummaryDirect(){
+  document.getElementById('summary-overlay').classList.remove('open');
 }
 
 // ─── CALENDAR ─────────────────────────────────────────────────────────────────
