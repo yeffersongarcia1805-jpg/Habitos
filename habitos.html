@@ -1136,36 +1136,41 @@ function updateKPIs(){
     offset += segLen + gap;
   });
 
+  // ── Dynamic color for center label: color of worst-performing category ──
+  let worstColor = pct>=80?'var(--accent)':pct>=50?'var(--amber)':'var(--red)';
+  if(catList.length > 0){
+    let worstPct = Infinity;
+    catList.forEach(([cat,val])=>{
+      const cp = val.total > 0 ? val.done / val.total : 0;
+      if(cp < worstPct){ worstPct = cp; worstColor = CAT_COLORS[cat]||worstColor; }
+    });
+  }
+
   // Center labels
   const pctEl = document.getElementById('k-pct');
-  if(pctEl){ pctEl.textContent=pct+'%'; pctEl.style.color=pct>=80?'var(--accent)':pct>=50?'var(--amber)':'var(--red)'; }
+  if(pctEl){ pctEl.textContent=pct+'%'; pctEl.style.color=worstColor; }
   const subEl = document.getElementById('k-pct-sub');
   if(subEl) subEl.textContent = cnt+' / '+total;
 
-  // ── Dynamic stats panel ───────────────────────────────────────────────────
+  // ── Dynamic stats panel — 5 categories only ───────────────────────────────
   const panel = document.getElementById('donut-stats-panel');
   if(panel){
     panel.innerHTML = '';
     catList.forEach(([cat,val])=>{
       const color = CAT_COLORS[cat]||'#888';
+      const catPct = val.total > 0 ? Math.round(val.done/val.total*100) : 0;
       const row = document.createElement('div');
       row.className = 'donut-stat-row';
-      row.innerHTML = `<div class="donut-stat-dot" style="background:${color}"></div><div class="donut-stat-name">${cat}</div><div class="donut-stat-val" style="color:${color}">${val.done}/${val.total}</div>`;
+      row.style.cssText = 'display:flex;align-items:center;gap:10px';
+      row.innerHTML = `
+        <div class="donut-stat-dot" style="background:${color}"></div>
+        <div class="donut-stat-name" style="flex:1">${cat}</div>
+        <div class="donut-stat-val" style="color:${color};font-size:12px;min-width:28px;text-align:right">${val.done}/${val.total}</div>
+        <div style="width:48px;height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;flex-shrink:0">
+          <div style="height:100%;width:${catPct}%;background:${color};border-radius:2px;transition:width .4s"></div>
+        </div>`;
       panel.appendChild(row);
     });
-    // Sleep row
-    const sh = parseFloat(todayState.sleep||0);
-    const sleepRow = document.createElement('div');
-    sleepRow.className = 'donut-stat-row';
-    const sleepCol = sh>=8?'var(--accent)':sh>=6?'var(--amber)':'var(--text3)';
-    sleepRow.innerHTML = `<div class="donut-stat-dot" style="background:var(--blue)"></div><div class="donut-stat-name">Sueño</div><div class="donut-stat-val" id="k-sleep" style="color:${sleepCol}">${sh>0?sh.toFixed(1)+'h':'—'}</div>`;
-    panel.appendChild(sleepRow);
-    // Energy row
-    const enRow = document.createElement('div');
-    enRow.className = 'donut-stat-row';
-    const en = todayState.energia;
-    enRow.innerHTML = `<div class="donut-stat-dot" style="background:var(--amber)"></div><div class="donut-stat-name">Energía</div><div class="donut-stat-val" id="k-energia">${en?en+'/5':'—'}</div>`;
-    panel.appendChild(enRow);
   }
 
   const racha = calcRacha();
