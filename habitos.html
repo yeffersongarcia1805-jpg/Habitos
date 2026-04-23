@@ -786,7 +786,13 @@ const MONTHS=["Enero 2026","Febrero 2026","Marzo 2026","Abril 2026","Mayo 2026",
 const DAY_NAMES=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 
 const today=new Date();
-const todayKey=today.toISOString().slice(0,10);
+function localDateKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dy=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dy;
+}
+const todayKey=localDateKey(today);
 let calYear=today.getFullYear(), calMonth=today.getMonth();
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
@@ -838,7 +844,7 @@ function calcHabitStreak(habitIndex){
   // start from yesterday (today's state not yet saved necessarily)
   for(let i=1;i<=90;i++){
     const dt=new Date(today);dt.setDate(dt.getDate()-i);
-    const k=dt.toISOString().slice(0,10);
+    const k=localDateKey(dt);
     const entry=d[k];
     if(entry&&entry.habits[habitIndex])streak++;
     else break;
@@ -896,7 +902,7 @@ function getLast7HabitDays(habitIndex){
   const d=stor();const cells=[];
   for(let i=6;i>=0;i--){
     const dt=new Date(today);dt.setDate(dt.getDate()-i);
-    const k=dt.toISOString().slice(0,10);
+    const k=localDateKey(dt);
     const entry=d[k];
     if(!entry){cells.push('empty');}
     else{cells.push(entry.habits[habitIndex]?'done':'miss');}
@@ -912,7 +918,7 @@ function buildWeekStrip(){
   const dayNames=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
   for(let i=6;i>=0;i--){
     const dt=new Date(today);dt.setDate(dt.getDate()-i);
-    const k=dt.toISOString().slice(0,10);
+    const k=localDateKey(dt);
     const isToday=k===todayKey;
     const isFuture=dt>today;
     const entry=d[k];
@@ -1109,7 +1115,7 @@ function updateKPIs(){
 function calcRacha(){
   const d=stor();let racha=0;const cur=new Date(today);
   for(let i=0;i<365;i++){
-    const k=cur.toISOString().slice(0,10);const e=d[k];
+    const k=localDateKey(cur);const e=d[k];
     if(!e){cur.setDate(cur.getDate()-1);if(i===0)continue;break;}
     if(e.habits.filter(Boolean).length/12*100>=80){racha++;cur.setDate(cur.getDate()-1);}else break;
   }
@@ -1332,7 +1338,7 @@ function renderStats(){
     sumPct+=pct;
     if(e.sleep){sumSleep+=parseFloat(e.sleep);slCnt++;}
     if(e.energia){sumEn+=e.energia;enCnt++;}
-    if(pct>=80){if(prev){const p=new Date(prev);p.setDate(p.getDate()+1);if(p.toISOString().slice(0,10)===k)tmpR++;else tmpR=1;}else tmpR=1;maxR=Math.max(maxR,tmpR);}else tmpR=0;prev=k;
+    if(pct>=80){if(prev){const p=new Date(prev);p.setDate(p.getDate()+1);if(localDateKey(p)===k)tmpR++;else tmpR=1;}else tmpR=1;maxR=Math.max(maxR,tmpR);}else tmpR=0;prev=k;
   });
   const avgPct=total?Math.round(sumPct/total):0;
   const avgSleep=slCnt?(sumSleep/slCnt).toFixed(1):'—';
@@ -1409,7 +1415,7 @@ function renderStats(){
     for (let day = 0; day < 7; day++) {
       const dt = new Date(anchorStart);
       dt.setDate(anchorStart.getDate() + w * 7 + day);
-      const k = dt.toISOString().slice(0,10);
+      const k = localDateKey(dt);
       const isFuture = dt > today;
       const entry = d[k];
 
