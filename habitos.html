@@ -359,29 +359,29 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .chart-card.full{grid-column:1/-1}
 .chart-title{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:16px}
 .chart-wrap{position:relative}
-.heatmap-wrap{width:100%;overflow:hidden}
-.heatmap-month-labels{display:flex;gap:0;margin-bottom:6px;padding-left:28px}
-.hm-month-lbl{font-size:10px;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;flex:none}
-.heatmap-body{display:flex;gap:8px;align-items:flex-start}
-.heatmap-day-labels{display:flex;flex-direction:column;gap:3px;padding-top:2px}
-.hm-day-lbl{font-size:10px;color:var(--text3);line-height:1;height:14px;display:flex;align-items:center}
-.heatmap-cols{display:flex;gap:3px;flex:1}
-.heatmap-col{display:flex;flex-direction:column;gap:3px}
-.heat-cell{width:14px;height:14px;border-radius:3px;background:var(--bg4);cursor:pointer;position:relative;transition:transform .12s,box-shadow .12s;flex-shrink:0;opacity:0;animation:cellIn .3s ease forwards}
-@keyframes cellIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
-.heat-cell:hover{transform:scale(1.4);box-shadow:0 0 0 1.5px rgba(255,255,255,.15);z-index:10}
-.heat-cell.future{opacity:.2!important;cursor:default;pointer-events:none}
-.hm-tooltip{position:fixed;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text);pointer-events:none;z-index:999;white-space:nowrap;opacity:0;transition:opacity .15s;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+/* RADIAL HEATMAP */
+.radial-wrap{display:flex;align-items:center;gap:32px;width:100%}
+.radial-canvas-wrap{position:relative;flex-shrink:0}
+.radial-canvas-wrap canvas{display:block}
+.radial-center-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.radial-center-pct{font-family:'DM Serif Display',serif;font-size:28px;letter-spacing:-1px;line-height:1;color:var(--text)}
+.radial-center-pct.green{color:var(--accent)}.radial-center-pct.amber{color:var(--amber)}.radial-center-pct.red{color:var(--red)}
+.radial-center-sub{font-size:11px;color:var(--text3);margin-top:4px;letter-spacing:.04em;text-transform:uppercase}
+.radial-sidebar{flex:1;min-width:0;display:flex;flex-direction:column;gap:16px}
+.radial-legend-rings{display:flex;flex-direction:column;gap:6px}
+.radial-ring-row{display:flex;align-items:center;gap:10px}
+.radial-ring-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.radial-ring-label{font-size:12px;color:var(--text2);flex:1}
+.radial-ring-val{font-size:12px;color:var(--text3);text-align:right}
+.radial-day-legend{display:flex;gap:10px;flex-wrap:wrap}
+.radial-day-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)}
+.radial-day-swatch{width:10px;height:10px;border-radius:2px}
+.hm-tooltip{position:fixed;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text);pointer-events:none;z-index:999;white-space:nowrap;opacity:0;transition:opacity .15s;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .hm-tooltip.visible{opacity:1}
-.hm-tooltip-date{color:var(--text3);font-size:11px;margin-bottom:3px}
-.hm-tooltip-pct{font-family:'DM Serif Display',serif;font-size:22px;letter-spacing:-0.5px;line-height:1}
+.hm-tooltip-date{color:var(--text3);font-size:11px;margin-bottom:4px}
+.hm-tooltip-pct{font-family:'DM Serif Display',serif;font-size:24px;letter-spacing:-0.5px;line-height:1}
 .hm-tooltip-pct.green{color:var(--accent)}.hm-tooltip-pct.amber{color:var(--amber)}.hm-tooltip-pct.red{color:var(--red)}.hm-tooltip-pct.gray{color:var(--text3)}
-.hm-tooltip-detail{font-size:11px;color:var(--text3);margin-top:2px}
-.hm-legend{display:flex;align-items:center;gap:10px;margin-top:14px}
-.hm-legend-label{font-size:11px;color:var(--text3)}
-.hm-legend-bar{flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,var(--bg4) 0%,rgba(201,240,136,.15) 25%,rgba(201,240,136,.45) 55%,rgba(201,240,136,.8) 80%,#c9f088 100%);max-width:160px}
-.hm-legend-ticks{display:flex;justify-content:space-between;max-width:160px;flex:1}
-.hm-legend-tick{font-size:10px;color:var(--text3)}
+.hm-tooltip-detail{font-size:11px;color:var(--text3);margin-top:3px}
 /* NUMERIC HABIT COUNTER */
 .habit-card.has-goal{cursor:default}
 .habit-card.has-goal:hover{border-color:var(--border);background:var(--bg2)}
@@ -841,17 +841,29 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
       <div class="chart-card"><div class="chart-title">Ranking de hábitos</div><div class="rank-list" id="rank-list" style="margin-top:4px"></div></div>
     </div>
     <div class="chart-card full">
-      <div class="chart-title">Mapa de actividad — últimas 12 semanas</div>
-      <div class="heatmap-wrap">
-        <div class="heatmap-month-labels" id="hm-month-labels"></div>
-        <div class="heatmap-body">
-          <div class="heatmap-day-labels" id="hm-day-labels"></div>
-          <div class="heatmap-cols" id="heatmap"></div>
+      <div class="chart-title">Mapa de actividad radial — últimas 12 semanas</div>
+      <div class="radial-wrap">
+        <div class="radial-canvas-wrap" id="radial-canvas-wrap">
+          <canvas id="radial-canvas" width="340" height="340"></canvas>
+          <div class="radial-center-label">
+            <div class="radial-center-pct" id="radial-center-pct">—</div>
+            <div class="radial-center-sub">promedio</div>
+          </div>
         </div>
-        <div class="hm-legend">
-          <span class="hm-legend-label">Sin datos</span>
-          <div class="hm-legend-bar"></div>
-          <span class="hm-legend-label">100%</span>
+        <div class="radial-sidebar">
+          <div>
+            <div class="section-title" style="margin-bottom:10px">Semanas (interior → exterior)</div>
+            <div class="radial-legend-rings" id="radial-legend-rings"></div>
+          </div>
+          <div>
+            <div class="section-title" style="margin-bottom:10px">Color por cumplimiento</div>
+            <div class="radial-day-legend">
+              <div class="radial-day-item"><div class="radial-day-swatch" style="background:rgba(255,255,255,.1)"></div>Sin datos</div>
+              <div class="radial-day-item"><div class="radial-day-swatch" style="background:rgba(240,112,112,.7)"></div>&lt; 50%</div>
+              <div class="radial-day-item"><div class="radial-day-swatch" style="background:rgba(240,192,96,.8)"></div>50–79%</div>
+              <div class="radial-day-item"><div class="radial-day-swatch" style="background:#c9f088"></div>≥ 80%</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="hm-tooltip" id="hm-tooltip">
@@ -1000,11 +1012,6 @@ function seedData(){
   let ch=false;
   Object.entries(EXCEL_SEED).forEach(([k,v])=>{if(!ex[k]){ex[k]=v;ch=true;}});
   if(ch)saveAll(ex);
-  // Remove any entries saved in the future due to the UTC timezone bug
-  const all=stor();
-  let dirty=false;
-  Object.keys(all).forEach(k=>{if(k>todayKey){delete all[k];dirty=true;}});
-  if(dirty)saveAll(all);
 }
 function stor(){
   const key = window._activeProfileId ? ('hab_data_'+window._activeProfileId) : 'hab_data';
@@ -1668,91 +1675,206 @@ function renderStats(){
   const rl=document.getElementById('rank-list');rl.innerHTML='';
   ranked.forEach(r=>{const cls=r.pct>=70?'':r.pct>=40?'mid':'low';rl.innerHTML+=`<div class="rank-row"><div class="rank-name">${r.name}</div><div class="rank-bar-wrap"><div class="rank-bar-fill ${cls}" style="width:${r.pct}%"></div></div><div class="rank-pct">${r.pct}%</div></div>`;});
 
-  // ── HEATMAP ──────────────────────────────────────────────────────────────
-  const hmCols = document.getElementById('heatmap');
-  const hmDayLabels = document.getElementById('hm-day-labels');
-  const hmMonthLabels = document.getElementById('hm-month-labels');
-  hmCols.innerHTML=''; hmDayLabels.innerHTML=''; hmMonthLabels.innerHTML='';
+  // ── RADIAL HEATMAP ───────────────────────────────────────────────────────
+  renderRadialMap(d);
+}
 
+// Radial map state for hit-testing
+let radialSegments = [];
+
+function renderRadialMap(d) {
+  const canvas = document.getElementById('radial-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const SIZE = 340;
+  const cx = SIZE / 2, cy = SIZE / 2;
   const WEEKS = 12;
-  const DAY_LABELS = ['Dom','','Mar','','Jue','','Sáb'];
-  DAY_LABELS.forEach(l => {
-    const el = document.createElement('div');
-    el.className = 'hm-day-lbl';
-    el.textContent = l;
-    hmDayLabels.appendChild(el);
-  });
+  const DAYS = 7;
 
-  // Build columns (each = 1 week, 7 cells top=Sun)
-  // Anchor: today, go back WEEKS*7-1 days
-  const totalDays = WEEKS * 7;
-  // find start: go back to the most recent Sunday on/before (today - totalDays + 1)
-  const anchorStart = new Date(today);
-  anchorStart.setDate(anchorStart.getDate() - (totalDays - 1));
-  // snap to Sunday
-  const dow = anchorStart.getDay();
-  anchorStart.setDate(anchorStart.getDate() - dow);
+  // Ring geometry
+  const outerRadius = 158;
+  const innerRadius = 38;   // center hole
+  const ringGap = 3;
+  const ringW = (outerRadius - innerRadius - ringGap * (WEEKS - 1)) / WEEKS;
 
-  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  let lastMonth = -1;
-  let cellDelay = 0;
+  // Build day data: newest week = outermost ring
+  // Week 0 = oldest (innermost), week 11 = newest (outermost)
+  const weekData = []; // array of 12 weeks, each = array of 7 days
+  const weekStart = new Date(today);
+  // Go back 12 weeks from today, snap to Sunday
+  weekStart.setDate(weekStart.getDate() - (WEEKS * DAYS - 1));
+  const snap = weekStart.getDay();
+  weekStart.setDate(weekStart.getDate() - snap);
 
-  // month label positions: track first col per month
-  const monthPositions = [];
+  let totalPct = 0, totalCount = 0;
 
   for (let w = 0; w < WEEKS; w++) {
-    const col = document.createElement('div');
-    col.className = 'heatmap-col';
-
-    for (let day = 0; day < 7; day++) {
-      const dt = new Date(anchorStart);
-      dt.setDate(anchorStart.getDate() + w * 7 + day);
+    const week = [];
+    for (let dIdx = 0; dIdx < DAYS; dIdx++) {
+      const dt = new Date(weekStart);
+      dt.setDate(weekStart.getDate() + w * DAYS + dIdx);
       const k = localDateKey(dt);
-      const isFuture = dt > today;
-      const entry = d[k];
-
-      const cell = document.createElement('div');
-      cell.className = 'heat-cell' + (isFuture ? ' future' : '');
-      cell.style.animationDelay = (cellDelay * 8) + 'ms';
-      cellDelay++;
-
+      const isFuture = k > todayKey;
+      const entry = isFuture ? null : (d[k] || null);
       let pct = null;
       if (entry) {
-        pct = Math.round(entry.habits.filter(Boolean).length / 12 * 100);
-        const alpha = 0.08 + (pct / 100) * 0.92;
-        if (pct >= 80) cell.style.background = `rgba(201,240,136,${alpha})`;
-        else if (pct >= 50) cell.style.background = `rgba(240,192,96,${(alpha * 0.75).toFixed(2)})`;
-        else if (pct > 0)  cell.style.background = `rgba(240,112,112,${(alpha * 0.6).toFixed(2)})`;
+        pct = Math.round(entry.habits.filter(Boolean).length / entry.habits.length * 100);
+        totalPct += pct; totalCount++;
       }
-
-      if (!isFuture) {
-        cell.addEventListener('mouseenter', e => showHmTooltip(e, dt, entry, pct));
-        cell.addEventListener('mouseleave', hideHmTooltip);
-        cell.addEventListener('mousemove', moveHmTooltip);
-      }
-
-      col.appendChild(cell);
-
-      // Track month label
-      if (!isFuture && day === 0) {
-        const m = dt.getMonth();
-        if (m !== lastMonth) { monthPositions.push({w, m}); lastMonth = m; }
-      }
+      week.push({ dt, k, entry, pct, isFuture });
     }
-    hmCols.appendChild(col);
+    weekData.push(week);
   }
 
-  // Render month labels with correct pixel offset
-  const colWidth = 17; // 14px cell + 3px gap
-  monthPositions.forEach(({w, m}) => {
-    const lbl = document.createElement('div');
-    lbl.className = 'hm-month-lbl';
-    lbl.textContent = monthNames[m];
-    lbl.style.width = '28px';
-    lbl.style.marginLeft = w === 0 ? '0' : (w * colWidth - (monthPositions.find(p=>p.w<w)?28:0)) + 'px';
-    hmMonthLabels.appendChild(lbl);
+  // Draw
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  radialSegments = [];
+
+  // Day arc: each day = 360/7 degrees, starting from top (-90°)
+  const segAngle = (Math.PI * 2) / DAYS;
+  const startAngle = -Math.PI / 2; // 12 o'clock
+  const gapAngle = 0.03; // small gap between segments
+
+  // Draw outer tick marks for day labels
+  const DAY_LABELS_SHORT = ['D','L','M','X','J','V','S'];
+
+  for (let w = 0; w < WEEKS; w++) {
+    const r1 = innerRadius + w * (ringW + ringGap);
+    const r2 = r1 + ringW;
+
+    for (let dIdx = 0; dIdx < DAYS; dIdx++) {
+      const { dt, entry, pct, isFuture } = weekData[w][dIdx];
+      const aStart = startAngle + dIdx * segAngle + gapAngle / 2;
+      const aEnd   = startAngle + (dIdx + 1) * segAngle - gapAngle / 2;
+
+      // Color
+      let color;
+      if (isFuture) {
+        color = 'rgba(255,255,255,0.04)';
+      } else if (pct === null) {
+        color = 'rgba(255,255,255,0.07)';
+      } else if (pct >= 80) {
+        const alpha = 0.35 + (pct / 100) * 0.65;
+        color = `rgba(201,240,136,${alpha.toFixed(2)})`;
+      } else if (pct >= 50) {
+        const alpha = 0.3 + (pct / 100) * 0.5;
+        color = `rgba(240,192,96,${alpha.toFixed(2)})`;
+      } else {
+        const alpha = pct > 0 ? 0.3 + (pct / 100) * 0.4 : 0.25;
+        color = `rgba(240,112,112,${alpha.toFixed(2)})`;
+      }
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r2, aStart, aEnd);
+      ctx.arc(cx, cy, r1, aEnd, aStart, true);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Store segment for hit-testing
+      radialSegments.push({ r1, r2, aStart, aEnd, dt, entry, pct, isFuture });
+    }
+  }
+
+  // Draw subtle ring separators
+  for (let w = 0; w <= WEEKS; w++) {
+    const r = innerRadius + w * (ringW + ringGap) - (w > 0 ? ringGap / 2 : 0);
+    if (w > 0 && w < WEEKS) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(15,15,14,0.9)';
+      ctx.lineWidth = ringGap;
+      ctx.stroke();
+    }
+  }
+
+  // Draw day label ticks outside outermost ring
+  const labelR = outerRadius + 14;
+  ctx.font = '500 10px DM Sans, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  DAY_LABELS_SHORT.forEach((lbl, dIdx) => {
+    const angle = startAngle + (dIdx + 0.5) * segAngle;
+    const x = cx + labelR * Math.cos(angle);
+    const y = cy + labelR * Math.sin(angle);
+    ctx.fillStyle = 'rgba(90,88,84,0.9)';
+    ctx.fillText(lbl, x, y);
   });
-}
+
+  // Center hole background
+  ctx.beginPath();
+  ctx.arc(cx, cy, innerRadius - 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#0f0f0e';
+  ctx.fill();
+
+  // Center % label
+  const avgPct = totalCount ? Math.round(totalPct / totalCount) : null;
+  const cpEl = document.getElementById('radial-center-pct');
+  if (avgPct !== null) {
+    cpEl.textContent = avgPct + '%';
+    cpEl.className = 'radial-center-pct ' + (avgPct >= 80 ? 'green' : avgPct >= 50 ? 'amber' : 'red');
+  } else {
+    cpEl.textContent = '—';
+    cpEl.className = 'radial-center-pct';
+  }
+
+  // Week legend (sidebar)
+  const legendEl = document.getElementById('radial-legend-rings');
+  if (legendEl) {
+    legendEl.innerHTML = '';
+    const RING_COLORS = [
+      '#3a3a36','#4a4a44','#5a5852','#6a6860',
+      '#7a786e','#8a887c','#9a988a','#aaa898',
+      '#bab8a6','#cac8b4','#dadac2','#eaeacd'
+    ];
+    // Show only every 3rd week to avoid clutter
+    [0,3,6,9,11].forEach(w => {
+      const wkData = weekData[w];
+      const dt0 = wkData[0].dt, dt6 = wkData[6].dt;
+      const fmt = d => d.toLocaleDateString('es-PE',{day:'numeric',month:'short'});
+      const wkPcts = wkData.filter(x=>x.pct!==null).map(x=>x.pct);
+      const wkAvg = wkPcts.length ? Math.round(wkPcts.reduce((a,b)=>a+b,0)/wkPcts.length) : null;
+      const row = document.createElement('div');
+      row.className = 'radial-ring-row';
+      row.innerHTML = `
+        <div class="radial-ring-dot" style="background:${RING_COLORS[w]}"></div>
+        <div class="radial-ring-label">${fmt(dt0)} – ${fmt(dt6)}</div>
+        <div class="radial-ring-val">${wkAvg !== null ? wkAvg+'%' : '—'}</div>`;
+      legendEl.appendChild(row);
+    });
+  }
+
+  // Mouse interaction
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (SIZE / rect.width);
+    const my = (e.clientY - rect.top) * (SIZE / rect.height);
+    const dx = mx - cx, dy = my - cy;
+    const r = Math.sqrt(dx*dx + dy*dy);
+    let angle = Math.atan2(dy, dx);
+    // Normalize angle relative to startAngle
+    let relAngle = angle - startAngle;
+    if (relAngle < 0) relAngle += Math.PI * 2;
+
+    let hit = null;
+    for (const seg of radialSegments) {
+      if (r < seg.r1 || r > seg.r2) continue;
+      let aS = seg.aStart - startAngle; if (aS < 0) aS += Math.PI*2;
+      let aE = seg.aEnd - startAngle;   if (aE < 0) aE += Math.PI*2;
+      if (aS > aE) aE += Math.PI*2;
+      let ra = relAngle; if (ra < aS - 0.01) ra += Math.PI*2;
+      if (ra >= aS - 0.01 && ra <= aE + 0.01) { hit = seg; break; }
+    }
+
+    if (hit && !hit.isFuture) {
+      showHmTooltip(e, hit.dt, hit.entry, hit.pct);
+      canvas.style.cursor = 'pointer';
+    } else {
+      hideHmTooltip();
+      canvas.style.cursor = 'default';
+    }
+  };
+  canvas.onmouseleave = hideHmTooltip;
 
 // ─── HEATMAP TOOLTIP ─────────────────────────────────────────────────────────
 function showHmTooltip(e, dt, entry, pct) {
