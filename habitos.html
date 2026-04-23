@@ -1000,6 +1000,11 @@ function seedData(){
   let ch=false;
   Object.entries(EXCEL_SEED).forEach(([k,v])=>{if(!ex[k]){ex[k]=v;ch=true;}});
   if(ch)saveAll(ex);
+  // Remove any entries saved in the future due to the UTC timezone bug
+  const all=stor();
+  let dirty=false;
+  Object.keys(all).forEach(k=>{if(k>todayKey){delete all[k];dirty=true;}});
+  if(dirty)saveAll(all);
 }
 function stor(){
   const key = window._activeProfileId ? ('hab_data_'+window._activeProfileId) : 'hab_data';
