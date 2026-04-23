@@ -16,7 +16,7 @@
 <script type="module">
 // ─── FIREBASE INIT ────────────────────────────────────────────────────────────
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, getDocs, setDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -36,33 +36,24 @@ const provider = new GoogleAuthProvider();
 window._firebaseReady = false;
 window._currentUser = null;
 
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
 window.loginGoogle = async function() {
-  try {
-    await signInWithPopup(auth, provider);
-  } catch(e) {
-    console.error('Login error:', e);
-    alert('Error al iniciar sesión: ' + e.message);
-  }
+  try { await signInWithPopup(auth, provider); }
+  catch(e) { console.error('Login error:', e); alert('Error al iniciar sesión: ' + e.message); }
 };
+window.logoutGoogle = async function() { await signOut(auth); };
 
-window.logoutGoogle = async function() {
-  await signOut(auth);
-};
+function userCol(uid) { return collection(db, 'usuarios', uid, 'dias'); }
+function userDayDoc(uid, dateKey) { return doc(db, 'usuarios', uid, 'dias', dateKey); }
 
-function getUserDoc(uid) {
-  return doc(db, 'usuarios', uid, 'habitos', 'datos');
-}
-
+// Sync all day-docs from Firestore into localStorage
 async function syncFromFirestore(uid) {
   try {
     window.showSyncStatus && window.showSyncStatus('Sincronizando...', 'loading');
-    const snap = await getDoc(getUserDoc(uid));
-    if (snap.exists()) {
-      const remote = snap.data();
+    const snap = await getDocs(userCol(uid));
+    if (!snap.empty) {
       const local = JSON.parse(localStorage.getItem('hab_data') || '{}');
-      const merged = Object.assign({}, local, remote);
-      localStorage.setItem('hab_data', JSON.stringify(merged));
+      snap.forEach(d => { local[d.id] = d.data(); });
+      localStorage.setItem('hab_data', JSON.stringify(local));
     }
     window._firebaseReady = true;
     window.showSyncStatus && window.showSyncStatus('✓ Nube sincronizada', 'ok');
@@ -75,15 +66,27 @@ async function syncFromFirestore(uid) {
   }
 }
 
-window._saveToFirestore = async function(data) {
+// Save a single day document
+window._saveDayToFirestore = async function(dateKey, dayData) {
   if (!window._firebaseReady || !window._currentUser) return;
   try {
-    await setDoc(getUserDoc(window._currentUser.uid), data);
+    await setDoc(userDayDoc(window._currentUser.uid, dateKey), dayData);
   } catch(e) {
     console.error('Firebase save error:', e);
     window.showSyncStatus && window.showSyncStatus('⚠ Error al guardar en nube', 'warn');
     setTimeout(() => window.hideSyncStatus && window.hideSyncStatus(), 3000);
   }
+};
+
+// Keep old _saveToFirestore for habits config
+window._saveToFirestore = async function(data) {
+  if (!window._firebaseReady || !window._currentUser) return;
+  // Save all days individually
+  const uid = window._currentUser.uid;
+  try {
+    const tasks = Object.entries(data).map(([k,v]) => setDoc(userDayDoc(uid,k), v));
+    await Promise.all(tasks);
+  } catch(e) { console.error('Batch save error:', e); }
 };
 
 // ─── AUTH STATE LISTENER ──────────────────────────────────────────────────────
@@ -554,34 +557,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
     <!-- DONUT PROGRESS -->
     <div class="donut-wrap">
       <div class="donut-svg-wrap">
-        <svg width="140" height="140" viewBox="0 0 140 140">
+        <svg id="donut-svg" width="140" height="140" viewBox="0 0 140 140">
           <circle cx="70" cy="70" r="54" fill="none" stroke="var(--bg4)" stroke-width="12"/>
-          <circle id="donut-arc" cx="70" cy="70" r="54" fill="none" stroke="var(--accent)" stroke-width="12"
-            stroke-linecap="round"
-            stroke-dasharray="339.3" stroke-dashoffset="339.3"
-            style="transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1),stroke .3s"/>
+          <!-- segments injected by JS -->
         </svg>
         <div class="donut-center">
           <div class="donut-pct-label" id="k-pct">0%</div>
           <div class="donut-sub-label" id="k-pct-sub">0 / 12</div>
         </div>
       </div>
-      <div class="donut-stats">
-        <div class="donut-stat-row">
-          <div class="donut-stat-dot" style="background:var(--blue)"></div>
-          <div class="donut-stat-name">Sueño</div>
-          <div class="donut-stat-val" id="k-sleep">—</div>
-        </div>
-        <div class="donut-stat-row">
-          <div class="donut-stat-dot" style="background:var(--accent)"></div>
-          <div class="donut-stat-name">Energía</div>
-          <div class="donut-stat-val" id="k-energia">—</div>
-        </div>
-        <div class="donut-stat-row">
-          <div class="donut-stat-dot" style="background:var(--amber)"></div>
-          <div class="donut-stat-name">Racha actual</div>
-          <div class="donut-stat-val" id="k-racha" style="color:var(--amber)">0 días</div>
-        </div>
+      <div class="donut-stats" id="donut-stats-panel">
+        <!-- rows injected by JS -->
       </div>
     </div>
     <!-- WEEK STRIP -->
@@ -813,6 +799,8 @@ function seedData(){
   const ex=JSON.parse(localStorage.getItem('hab_data')||'{}');
   let ch=false;
   Object.entries(EXCEL_SEED).forEach(([k,v])=>{if(!ex[k]){ex[k]=v;ch=true;}});
+  // Remove any future dates (bug fix)
+  Object.keys(ex).forEach(k=>{ if(k>todayKey){delete ex[k];ch=true;} });
   if(ch)localStorage.setItem('hab_data',JSON.stringify(ex));
 }
 function stor(){try{return JSON.parse(localStorage.getItem('hab_data')||'{}')}catch{return{}}}
@@ -820,8 +808,14 @@ function saveAll(d){
   localStorage.setItem('hab_data',JSON.stringify(d));
   if(window._saveToFirestore) window._saveToFirestore(d);
 }
-function getDay(k){return stor()[k]||{habits:new Array(12).fill(false),habitVals:{},sleep:'',sleepTime:'',wakeTime:'',energia:0,conc:0,mental:0,ojeras:0,nota:''}}
-function saveDay(k,day){const d=stor();d[k]=day;saveAll(d)}
+function getDay(k){return stor()[k]||{habits:new Array(HABITS.length).fill(false),habitVals:{},sleep:'',sleepTime:'',wakeTime:'',energia:0,conc:0,mental:0,ojeras:0,nota:''}}
+function saveDay(k,day){
+  const d=stor();
+  d[k]=day;
+  localStorage.setItem('hab_data',JSON.stringify(d));
+  // Save individual day doc to Firestore
+  if(window._saveDayToFirestore) window._saveDayToFirestore(k,day);
+}
 
 let todayState={};
 
@@ -1085,32 +1079,105 @@ function setStar(key,n){
 }
 
 // ─── KPIs ─────────────────────────────────────────────────────────────────────
+// Category colors for donut segments
+const CAT_COLORS={
+  'Sueño':  '#88c8f0',
+  'Cuerpo': '#c9f088',
+  'Mente':  '#c0a0f0',
+  'Social': '#f0c060',
+  'Salud':  '#f07070'
+};
+
 function updateKPIs(){
-  const cnt=todayState.habits.filter(Boolean).length;
-  const pct=Math.round(cnt/12*100);
+  const total = HABITS.length || 12;
+  const cnt = todayState.habits.filter(Boolean).length;
+  const pct = Math.round(cnt / total * 100);
 
-  // Donut arc (circumference = 2π×54 ≈ 339.3)
-  const circ=339.3;
-  const arc=document.getElementById('donut-arc');
-  if(arc){
-    arc.style.strokeDashoffset=(circ-(circ*pct/100)).toFixed(2);
-    arc.style.stroke=pct>=80?'var(--accent)':pct>=50?'var(--amber)':'var(--red)';
+  // ── Segmented donut ──────────────────────────────────────────────────────
+  const circ = 339.3; // 2π×54
+  const gap = 3;      // gap in px between segments
+  const svg = document.getElementById('donut-svg');
+
+  // Remove old segments
+  svg.querySelectorAll('.donut-seg').forEach(s=>s.remove());
+
+  // Group by category
+  const cats = {};
+  HABITS.forEach((h,i)=>{ if(!cats[h.cat]) cats[h.cat]={total:0,done:0}; cats[h.cat].total++; if(todayState.habits[i]) cats[h.cat].done++; });
+  const catList = Object.entries(cats);
+  const numCats = catList.length;
+  const totalGap = gap * numCats;
+  let offset = 0; // start at top (SVG rotated -90deg)
+
+  catList.forEach(([cat, val])=>{
+    const segLen = (val.total / total) * (circ - totalGap);
+    const doneLen = (val.done / val.total) * segLen;
+    const color = CAT_COLORS[cat] || '#888';
+
+    // Background segment (dim)
+    const bg = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    bg.setAttribute('cx','70'); bg.setAttribute('cy','70'); bg.setAttribute('r','54');
+    bg.setAttribute('fill','none'); bg.setAttribute('stroke',color);
+    bg.setAttribute('stroke-width','12'); bg.setAttribute('stroke-opacity','0.15');
+    bg.setAttribute('stroke-dasharray', `${segLen} ${circ-segLen}`);
+    bg.setAttribute('stroke-dashoffset', `${circ - offset}`);
+    bg.classList.add('donut-seg');
+    svg.appendChild(bg);
+
+    // Filled segment
+    if(doneLen > 0){
+      const fg = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      fg.setAttribute('cx','70'); fg.setAttribute('cy','70'); fg.setAttribute('r','54');
+      fg.setAttribute('fill','none'); fg.setAttribute('stroke',color);
+      fg.setAttribute('stroke-width','12');
+      fg.setAttribute('stroke-linecap','round');
+      fg.setAttribute('stroke-dasharray', `${doneLen} ${circ-doneLen}`);
+      fg.setAttribute('stroke-dashoffset', `${circ - offset}`);
+      fg.style.transition = 'stroke-dasharray .5s cubic-bezier(.4,0,.2,1)';
+      fg.classList.add('donut-seg');
+      svg.appendChild(fg);
+    }
+
+    offset += segLen + gap;
+  });
+
+  // Center labels
+  const pctEl = document.getElementById('k-pct');
+  if(pctEl){ pctEl.textContent=pct+'%'; pctEl.style.color=pct>=80?'var(--accent)':pct>=50?'var(--amber)':'var(--red)'; }
+  const subEl = document.getElementById('k-pct-sub');
+  if(subEl) subEl.textContent = cnt+' / '+total;
+
+  // ── Dynamic stats panel ───────────────────────────────────────────────────
+  const panel = document.getElementById('donut-stats-panel');
+  if(panel){
+    panel.innerHTML = '';
+    catList.forEach(([cat,val])=>{
+      const color = CAT_COLORS[cat]||'#888';
+      const row = document.createElement('div');
+      row.className = 'donut-stat-row';
+      row.innerHTML = `<div class="donut-stat-dot" style="background:${color}"></div><div class="donut-stat-name">${cat}</div><div class="donut-stat-val" style="color:${color}">${val.done}/${val.total}</div>`;
+      panel.appendChild(row);
+    });
+    // Sleep row
+    const sh = parseFloat(todayState.sleep||0);
+    const sleepRow = document.createElement('div');
+    sleepRow.className = 'donut-stat-row';
+    const sleepCol = sh>=8?'var(--accent)':sh>=6?'var(--amber)':'var(--text3)';
+    sleepRow.innerHTML = `<div class="donut-stat-dot" style="background:var(--blue)"></div><div class="donut-stat-name">Sueño</div><div class="donut-stat-val" id="k-sleep" style="color:${sleepCol}">${sh>0?sh.toFixed(1)+'h':'—'}</div>`;
+    panel.appendChild(sleepRow);
+    // Energy row
+    const enRow = document.createElement('div');
+    enRow.className = 'donut-stat-row';
+    const en = todayState.energia;
+    enRow.innerHTML = `<div class="donut-stat-dot" style="background:var(--amber)"></div><div class="donut-stat-name">Energía</div><div class="donut-stat-val" id="k-energia">${en?en+'/5':'—'}</div>`;
+    panel.appendChild(enRow);
   }
-  const pctEl=document.getElementById('k-pct');
-  if(pctEl){pctEl.textContent=pct+'%';pctEl.style.color=pct>=80?'var(--accent)':pct>=50?'var(--amber)':'var(--red)';}
-  const subEl=document.getElementById('k-pct-sub');
-  if(subEl)subEl.textContent=cnt+' / 12';
 
-  const sh=parseFloat(todayState.sleep||0);
-  if(sh>0){const sl=document.getElementById('k-sleep');if(sl){sl.textContent=sh.toFixed(1)+'h';sl.style.color=sh>=8?'var(--accent)':sh>=6?'var(--amber)':'var(--red)';}}
-
-  const enEl=document.getElementById('k-energia');
-  if(enEl&&todayState.energia){enEl.textContent=todayState.energia+'/5';enEl.style.color=todayState.energia>=4?'var(--accent)':todayState.energia>=3?'var(--amber)':'var(--red)';}
-
-  const racha=calcRacha();
-  const rachEl=document.getElementById('k-racha');
-  if(rachEl)rachEl.textContent=racha+' día'+(racha!==1?'s':'');
-  document.getElementById('sidebar-streak').textContent=racha+' día'+(racha!==1?'s':'')+' de racha';
+  const racha = calcRacha();
+  const rachEl = document.getElementById('k-racha');
+  if(rachEl) rachEl.textContent = racha+' día'+(racha!==1?'s':'');
+  const sstr = document.getElementById('sidebar-streak');
+  if(sstr) sstr.textContent = racha+' día'+(racha!==1?'s':'')+' de racha';
 }
 function calcRacha(){
   const d=stor();let racha=0;const cur=new Date(today);
@@ -1299,7 +1366,16 @@ function saveModalDay(){
 
 function deleteModalDay(){
   if(!confirm('¿Eliminar el registro de este día?'))return;
-  const d=stor();delete d[modalKey];saveAll(d);
+  const d=stor();delete d[modalKey];
+  localStorage.setItem('hab_data',JSON.stringify(d));
+  // Delete from Firestore
+  if(window._firebaseReady && window._currentUser){
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
+      .then(({getFirestore,doc,deleteDoc})=>{
+        const db=window._db||getFirestore();
+        deleteDoc(doc(db,'usuarios',window._currentUser.uid,'dias',modalKey)).catch(console.error);
+      });
+  }
   closeModalDirect();renderCalendar();updateKPIs();
 }
 
