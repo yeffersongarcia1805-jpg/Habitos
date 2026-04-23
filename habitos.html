@@ -272,29 +272,21 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .chart-card.full{grid-column:1/-1}
 .chart-title{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:16px}
 .chart-wrap{position:relative}
-.heatmap-wrap{width:100%;overflow:hidden}
-.heatmap-month-labels{display:flex;gap:0;margin-bottom:6px;padding-left:28px}
-.hm-month-lbl{font-size:10px;color:var(--text3);letter-spacing:.04em;text-transform:uppercase;flex:none}
-.heatmap-body{display:flex;gap:8px;align-items:flex-start}
-.heatmap-day-labels{display:flex;flex-direction:column;gap:3px;padding-top:2px}
-.hm-day-lbl{font-size:10px;color:var(--text3);line-height:1;height:14px;display:flex;align-items:center}
-.heatmap-cols{display:flex;gap:3px;flex:1}
-.heatmap-col{display:flex;flex-direction:column;gap:3px}
-.heat-cell{width:14px;height:14px;border-radius:3px;background:var(--bg4);cursor:pointer;position:relative;transition:transform .12s,box-shadow .12s;flex-shrink:0;opacity:0;animation:cellIn .3s ease forwards}
-@keyframes cellIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
-.heat-cell:hover{transform:scale(1.4);box-shadow:0 0 0 1.5px rgba(255,255,255,.15);z-index:10}
-.heat-cell.future{opacity:.2!important;cursor:default;pointer-events:none}
-.hm-tooltip{position:fixed;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text);pointer-events:none;z-index:999;white-space:nowrap;opacity:0;transition:opacity .15s;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+/* ── NUEVO MAPA DE ACTIVIDAD ─────────────────────────────────────── */
+.activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.activity-radial{display:flex;flex-direction:column;align-items:center}
+.activity-radial svg{width:100%;max-width:260px;height:auto;display:block;margin:0 auto}
+.activity-bar-wrap{position:relative;width:100%;height:240px}
+.act-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.act-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)}
+.act-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.hm-tooltip{position:fixed;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text);pointer-events:none;z-index:999;white-space:nowrap;opacity:0;transition:opacity .15s}
 .hm-tooltip.visible{opacity:1}
 .hm-tooltip-date{color:var(--text3);font-size:11px;margin-bottom:3px}
-.hm-tooltip-pct{font-family:'DM Serif Display',serif;font-size:22px;letter-spacing:-0.5px;line-height:1}
+.hm-tooltip-pct{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-0.5px;line-height:1}
 .hm-tooltip-pct.green{color:var(--accent)}.hm-tooltip-pct.amber{color:var(--amber)}.hm-tooltip-pct.red{color:var(--red)}.hm-tooltip-pct.gray{color:var(--text3)}
 .hm-tooltip-detail{font-size:11px;color:var(--text3);margin-top:2px}
-.hm-legend{display:flex;align-items:center;gap:10px;margin-top:14px}
-.hm-legend-label{font-size:11px;color:var(--text3)}
-.hm-legend-bar{flex:1;height:6px;border-radius:3px;background:linear-gradient(to right,var(--bg4) 0%,rgba(201,240,136,.15) 25%,rgba(201,240,136,.45) 55%,rgba(201,240,136,.8) 80%,#c9f088 100%);max-width:160px}
-.hm-legend-ticks{display:flex;justify-content:space-between;max-width:160px;flex:1}
-.hm-legend-tick{font-size:10px;color:var(--text3)}
+@media(max-width:768px){.activity-grid{grid-template-columns:1fr}}
 /* NUMERIC HABIT COUNTER */
 .habit-card.has-goal{cursor:default}
 .habit-card.has-goal:hover{border-color:var(--border);background:var(--bg2)}
@@ -652,17 +644,18 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
       <div class="chart-card"><div class="chart-title">Ranking de hábitos</div><div class="rank-list" id="rank-list" style="margin-top:4px"></div></div>
     </div>
     <div class="chart-card full">
-      <div class="chart-title">Mapa de actividad — últimas 12 semanas</div>
-      <div class="heatmap-wrap">
-        <div class="heatmap-month-labels" id="hm-month-labels"></div>
-        <div class="heatmap-body">
-          <div class="heatmap-day-labels" id="hm-day-labels"></div>
-          <div class="heatmap-cols" id="heatmap"></div>
+      <div class="chart-title">Mapa de actividad anual · por categoría</div>
+      <div class="activity-grid">
+        <div class="activity-radial">
+          <svg id="radial-svg" viewBox="0 0 280 280"></svg>
+          <div class="act-legend" id="act-legend-radial"></div>
         </div>
-        <div class="hm-legend">
-          <span class="hm-legend-label">Sin datos</span>
-          <div class="hm-legend-bar"></div>
-          <span class="hm-legend-label">100%</span>
+        <div>
+          <div class="chart-title" style="margin-bottom:12px">Últimas 12 semanas por categoría</div>
+          <div class="activity-bar-wrap">
+            <canvas id="chart-actividad-semanal" role="img" aria-label="Barras apiladas de hábitos completados por categoría en las últimas 12 semanas">Hábitos por categoría, últimas 12 semanas.</canvas>
+          </div>
+          <div class="act-legend" id="act-legend-bar"></div>
         </div>
       </div>
       <div class="hm-tooltip" id="hm-tooltip">
@@ -1452,120 +1445,275 @@ function renderStats(){
   const rl=document.getElementById('rank-list');rl.innerHTML='';
   ranked.forEach(r=>{const cls=r.pct>=70?'':r.pct>=40?'mid':'low';rl.innerHTML+=`<div class="rank-row"><div class="rank-name">${r.name}</div><div class="rank-bar-wrap"><div class="rank-bar-fill ${cls}" style="width:${r.pct}%"></div></div><div class="rank-pct">${r.pct}%</div></div>`;});
 
-  // ── HEATMAP ──────────────────────────────────────────────────────────────
-  const hmCols = document.getElementById('heatmap');
-  const hmDayLabels = document.getElementById('hm-day-labels');
-  const hmMonthLabels = document.getElementById('hm-month-labels');
-  hmCols.innerHTML=''; hmDayLabels.innerHTML=''; hmMonthLabels.innerHTML='';
+  // ── MAPA DE ACTIVIDAD: círculo anual + barras semanales ──────────────────
+  renderActividadRadial(d);
+  renderActividadSemanal(d);
+}
 
-  const WEEKS = 12;
-  const DAY_LABELS = ['Dom','','Mar','','Jue','','Sáb'];
-  DAY_LABELS.forEach(l => {
-    const el = document.createElement('div');
-    el.className = 'hm-day-lbl';
-    el.textContent = l;
-    hmDayLabels.appendChild(el);
+// ─── MAPA DE ACTIVIDAD — CÍRCULO ANUAL ───────────────────────────────────────
+const ACT_CATS = [
+  {name:'Sueño',  color:'#88c8f0'},
+  {name:'Cuerpo', color:'#c9f088'},
+  {name:'Mente',  color:'#c0a0f0'},
+  {name:'Social', color:'#f0c060'},
+  {name:'Salud',  color:'#f09070'},
+];
+
+function getCatForHabit(habitIndex) {
+  return HABITS[habitIndex] ? HABITS[habitIndex].cat : null;
+}
+
+function renderActividadRadial(d) {
+  const svg = document.getElementById('radial-svg');
+  const legend = document.getElementById('act-legend-radial');
+  if (!svg) return;
+
+  // Limpiar
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  if (legend) legend.innerHTML = '';
+
+  const CX = 140, CY = 140;
+  const OUTER_R = 118, RING_W = 16, GAP = 3;
+
+  // Meses alrededor
+  const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  MONTH_NAMES.forEach((m, mi) => {
+    const angle = (mi / 12) * 2 * Math.PI - Math.PI / 2;
+    const r = OUTER_R + 22;
+    const x = CX + r * Math.cos(angle);
+    const y = CY + r * Math.sin(angle);
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', x.toFixed(1));
+    txt.setAttribute('y', y.toFixed(1));
+    txt.setAttribute('text-anchor', 'middle');
+    txt.setAttribute('dominant-baseline', 'middle');
+    txt.setAttribute('font-size', '8.5');
+    txt.setAttribute('fill', '#5a5854');
+    txt.setAttribute('font-family', 'DM Sans, sans-serif');
+    txt.textContent = m;
+    svg.appendChild(txt);
   });
 
-  // Build columns (each = 1 week, 7 cells top=Sun)
-  // Anchor: today, go back WEEKS*7-1 days
-  const totalDays = WEEKS * 7;
-  // find start: go back to the most recent Sunday on/before (today - totalDays + 1)
-  const anchorStart = new Date(today);
-  anchorStart.setDate(anchorStart.getDate() - (totalDays - 1));
-  // snap to Sunday
-  const dow = anchorStart.getDay();
-  anchorStart.setDate(anchorStart.getDate() - dow);
+  // Año en el centro
+  const yr = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  yr.setAttribute('x', CX);
+  yr.setAttribute('y', CY + 7);
+  yr.setAttribute('text-anchor', 'middle');
+  yr.setAttribute('font-size', '20');
+  yr.setAttribute('font-weight', '500');
+  yr.setAttribute('fill', '#e8e6df');
+  yr.setAttribute('font-family', 'DM Sans, sans-serif');
+  yr.textContent = today.getFullYear();
+  svg.appendChild(yr);
 
-  const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  let lastMonth = -1;
-  let cellDelay = 0;
+  // Calcular qué categorías existen en los hábitos actuales
+  const catSet = [...new Set(HABITS.map(h => h.cat))];
+  const activeCats = ACT_CATS.filter(c => catSet.includes(c.name));
 
-  // month label positions: track first col per month
-  const monthPositions = [];
+  // Año completo: del 1 ene al 31 dic del año actual
+  const year = today.getFullYear();
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd   = new Date(year, 11, 31);
+  const totalDaysYear = Math.round((yearEnd - yearStart) / 86400000) + 1;
 
-  for (let w = 0; w < WEEKS; w++) {
-    const col = document.createElement('div');
-    col.className = 'heatmap-col';
+  activeCats.forEach((cat, ri) => {
+    const r = OUTER_R - ri * (RING_W + GAP);
 
-    for (let day = 0; day < 7; day++) {
-      const dt = new Date(anchorStart);
-      dt.setDate(anchorStart.getDate() + w * 7 + day);
+    // Fondo del anillo (circunferencia completa, muy tenue)
+    const bgCirc = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    bgCirc.setAttribute('cx', CX); bgCirc.setAttribute('cy', CY);
+    bgCirc.setAttribute('r', r - RING_W / 2);
+    bgCirc.setAttribute('fill', 'none');
+    bgCirc.setAttribute('stroke', cat.color);
+    bgCirc.setAttribute('stroke-opacity', '0.08');
+    bgCirc.setAttribute('stroke-width', RING_W);
+    svg.appendChild(bgCirc);
+
+    // Un trazo por día
+    for (let di = 0; di < totalDaysYear; di++) {
+      const dt = new Date(yearStart);
+      dt.setDate(yearStart.getDate() + di);
+      if (dt > today) break; // no pintar días futuros
+
       const k = localDateKey(dt);
-      const isFuture = dt > today;
       const entry = d[k];
+      if (!entry) continue;
 
-      const cell = document.createElement('div');
-      cell.className = 'heat-cell' + (isFuture ? ' future' : '');
-      cell.style.animationDelay = (cellDelay * 8) + 'ms';
-      cellDelay++;
+      // Contar hábitos de esta categoría completados
+      let done = 0, total = 0;
+      HABITS.forEach((h, hi) => {
+        if (h.cat === cat.name) {
+          total++;
+          if (entry.habits[hi]) done++;
+        }
+      });
+      if (total === 0) continue;
 
-      let pct = null;
-      if (entry) {
-        pct = Math.round(entry.habits.filter(Boolean).length / 12 * 100);
-        const alpha = 0.08 + (pct / 100) * 0.92;
-        if (pct >= 80) cell.style.background = `rgba(201,240,136,${alpha})`;
-        else if (pct >= 50) cell.style.background = `rgba(240,192,96,${(alpha * 0.75).toFixed(2)})`;
-        else if (pct > 0)  cell.style.background = `rgba(240,112,112,${(alpha * 0.6).toFixed(2)})`;
+      const ratio = done / total;
+      if (ratio === 0) continue;
+
+      const angle = (di / totalDaysYear) * 2 * Math.PI - Math.PI / 2;
+      const arcLen = (1 / totalDaysYear) * 2 * Math.PI * 0.75; // 75% del espacio del día
+      const rInner = r - RING_W + 2;
+      const rOuter = r - 2;
+
+      const x1 = CX + rOuter * Math.cos(angle);
+      const y1 = CY + rOuter * Math.sin(angle);
+      const x2 = CX + rInner * Math.cos(angle);
+      const y2 = CY + rInner * Math.sin(angle);
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1.toFixed(2)); line.setAttribute('y1', y1.toFixed(2));
+      line.setAttribute('x2', x2.toFixed(2)); line.setAttribute('y2', y2.toFixed(2));
+      line.setAttribute('stroke', cat.color);
+      line.setAttribute('stroke-opacity', (0.15 + ratio * 0.85).toFixed(2));
+      line.setAttribute('stroke-width', '2');
+      line.setAttribute('stroke-linecap', 'round');
+
+      // Tooltip en SVG
+      line.style.cursor = 'default';
+      line.addEventListener('mouseenter', function(e) {
+        const dateStr = dt.toLocaleDateString('es-PE', {weekday:'long', day:'numeric', month:'long'});
+        const pctTotal = Math.round(entry.habits.filter(Boolean).length / HABITS.length * 100);
+        document.getElementById('hm-tt-date').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+        document.getElementById('hm-tt-pct').textContent = pctTotal + '%';
+        document.getElementById('hm-tt-pct').className = 'hm-tooltip-pct ' + (pctTotal>=80?'green':pctTotal>=50?'amber':'red');
+        document.getElementById('hm-tt-detail').textContent = cat.name + ': ' + done + '/' + total + ' hábitos';
+        moveHmTooltip(e);
+        document.getElementById('hm-tooltip').classList.add('visible');
+      });
+      line.addEventListener('mousemove', moveHmTooltip);
+      line.addEventListener('mouseleave', hideHmTooltip);
+
+      svg.appendChild(line);
+    }
+  });
+
+  // Leyenda
+  if (legend) {
+    activeCats.forEach(cat => {
+      const item = document.createElement('div');
+      item.className = 'act-legend-item';
+      item.innerHTML = `<div class="act-legend-dot" style="background:${cat.color}"></div>${cat.name}`;
+      legend.appendChild(item);
+    });
+  }
+}
+
+// ─── MAPA DE ACTIVIDAD — BARRAS SEMANALES ─────────────────────────────────────
+function renderActividadSemanal(d) {
+  const canvasEl = document.getElementById('chart-actividad-semanal');
+  const legend   = document.getElementById('act-legend-bar');
+  if (!canvasEl) return;
+
+  // Destruir instancia previa si existe
+  destroyChart('chart-actividad-semanal');
+
+  // Calcular las últimas 12 semanas
+  const WEEKS = 12;
+  const weekLabels = [];
+  const weekDates  = []; // {start, end} de cada semana
+
+  // La semana más reciente termina hoy
+  const weekEnd = new Date(today);
+  for (let w = WEEKS - 1; w >= 0; w--) {
+    const end   = new Date(weekEnd); end.setDate(weekEnd.getDate() - w * 7);
+    const start = new Date(end);     start.setDate(end.getDate() - 6);
+    weekLabels.push('S' + (WEEKS - w));
+    weekDates.push({start, end});
+  }
+
+  // Calcular qué categorías existen
+  const catSet = [...new Set(HABITS.map(h => h.cat))];
+  const activeCats = ACT_CATS.filter(c => catSet.includes(c.name));
+
+  // Para cada categoría, contar hábitos completados por semana
+  const datasets = activeCats.map(cat => {
+    const data = weekDates.map(({start, end}) => {
+      let done = 0;
+      const cur = new Date(start);
+      while (cur <= end) {
+        const k = localDateKey(cur);
+        const entry = d[k];
+        if (entry) {
+          HABITS.forEach((h, hi) => {
+            if (h.cat === cat.name && entry.habits[hi]) done++;
+          });
+        }
+        cur.setDate(cur.getDate() + 1);
       }
+      return done;
+    });
+    return {
+      label: cat.name,
+      data,
+      backgroundColor: cat.color,
+      borderRadius: 3,
+      borderSkipped: false,
+    };
+  });
 
-      if (!isFuture) {
-        cell.addEventListener('mouseenter', e => showHmTooltip(e, dt, entry, pct));
-        cell.addEventListener('mouseleave', hideHmTooltip);
-        cell.addEventListener('mousemove', moveHmTooltip);
-      }
-
-      col.appendChild(cell);
-
-      // Track month label
-      if (!isFuture && day === 0) {
-        const m = dt.getMonth();
-        if (m !== lastMonth) { monthPositions.push({w, m}); lastMonth = m; }
+  chartInstances['chart-actividad-semanal'] = new Chart(canvasEl, {
+    type: 'bar',
+    data: { labels: weekLabels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: items => 'Semana ' + items[0].label,
+            label: item => ' ' + item.dataset.label + ': ' + item.raw + ' hábitos'
+          },
+          backgroundColor: '#1e1e1a',
+          titleColor: '#e8e6df',
+          bodyColor: '#9a9890',
+          borderColor: 'rgba(255,255,255,.13)',
+          borderWidth: 1,
+          padding: 10,
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: { display: false },
+          border: { display: false },
+          ticks: { color: '#5a5854', font: { size: 11 }, autoSkip: false }
+        },
+        y: {
+          stacked: true,
+          grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+          border: { display: false },
+          ticks: { color: '#5a5854', font: { size: 11 }, maxTicksLimit: 5, stepSize: 1 }
+        }
       }
     }
-    hmCols.appendChild(col);
-  }
-
-  // Render month labels with correct pixel offset
-  const colWidth = 17; // 14px cell + 3px gap
-  monthPositions.forEach(({w, m}) => {
-    const lbl = document.createElement('div');
-    lbl.className = 'hm-month-lbl';
-    lbl.textContent = monthNames[m];
-    lbl.style.width = '28px';
-    lbl.style.marginLeft = w === 0 ? '0' : (w * colWidth - (monthPositions.find(p=>p.w<w)?28:0)) + 'px';
-    hmMonthLabels.appendChild(lbl);
   });
+
+  // Leyenda
+  if (legend) {
+    legend.innerHTML = '';
+    activeCats.forEach(cat => {
+      const item = document.createElement('div');
+      item.className = 'act-legend-item';
+      item.innerHTML = `<div class="act-legend-dot" style="background:${cat.color}"></div>${cat.name}`;
+      legend.appendChild(item);
+    });
+  }
 }
 
-// ─── HEATMAP TOOLTIP ─────────────────────────────────────────────────────────
-function showHmTooltip(e, dt, entry, pct) {
-  const tt = document.getElementById('hm-tooltip');
-  const dateStr = dt.toLocaleDateString('es-PE', {weekday:'long', day:'numeric', month:'long'});
-  document.getElementById('hm-tt-date').textContent = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
-  if (entry && pct !== null) {
-    const cnt = entry.habits.filter(Boolean).length;
-    const pc = pct>=80?'green':pct>=50?'amber':'red';
-    document.getElementById('hm-tt-pct').textContent = pct + '%';
-    document.getElementById('hm-tt-pct').className = 'hm-tooltip-pct ' + pc;
-    const sleepStr = entry.sleep ? ` · ${parseFloat(entry.sleep).toFixed(1)}h sueño` : '';
-    document.getElementById('hm-tt-detail').textContent = `${cnt}/12 hábitos${sleepStr}`;
-  } else {
-    document.getElementById('hm-tt-pct').textContent = 'Sin registro';
-    document.getElementById('hm-tt-pct').className = 'hm-tooltip-pct gray';
-    document.getElementById('hm-tt-detail').textContent = 'Haz clic en el calendario para añadir';
-  }
-  moveHmTooltip(e);
-  tt.classList.add('visible');
-}
+// ─── TOOLTIP ─────────────────────────────────────────────────────────────────
 function moveHmTooltip(e) {
   const tt = document.getElementById('hm-tooltip');
+  if (!tt) return;
   const x = e.clientX + 14, y = e.clientY - 60;
-  tt.style.left = Math.min(x, window.innerWidth - 200) + 'px';
-  tt.style.top = Math.max(y, 8) + 'px';
+  tt.style.left = Math.min(x, window.innerWidth - 210) + 'px';
+  tt.style.top  = Math.max(y, 8) + 'px';
 }
 function hideHmTooltip() {
-  document.getElementById('hm-tooltip').classList.remove('visible');
+  const tt = document.getElementById('hm-tooltip');
+  if (tt) tt.classList.remove('visible');
 }
 
 // ─── HISTÓRICO ────────────────────────────────────────────────────────────────
